@@ -1,46 +1,41 @@
-name: 生成论文审查PDF（支持手动+扣子触发）
-on:
-  workflow_dispatch:
-    inputs:
-      student_id:
-        description: '学号'
-        required: true
-        type: string
-      content:
-        description: '论文审查报告文本'
-        required: true
-        type: string
+name: Generate PDF from Report
 
+on:
   repository_dispatch:
-    types: [generate_pdf]
+    types: [build-pdf]
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装环境
-        run: |
-          sudo apt update
-          sudo apt install -y fonts-wqy-zenhei python3-pip
-          pip install reportlab
-
-      - name: 判断来源并保存参数
-        run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo '${{ github.event.client_payload.student_id }}' > student_id.txt
-            echo '${{ github.event.client_payload.content }}' > content.txt
-          else
-            echo '${{ github.event.inputs.student_id }}' > student_id.txt
-            echo '${{ github.event.inputs.content }}' > content.txt
-          fi
-
-      - name: 生成PDF
-        run: python3 build_pdf.py
-
-      - name: 上传PDF
-        uses: actions/upload-artifact@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          name: pdf-report
-          path: ${{ env.student_id }}.pdf
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright jinja2 requests
+          playwright install chromium
+
+      - name: Generate PDF and upload to tmpfiles.org
+        env:
+          STUDENT_ID: ${{ github.event.client_payload.student_id }}
+          REPORT_TEXT: ${{ github.event.client_payload.output }}
+        run: |
+          python generate_pdf.py "$STUDENT_ID" "$REPORT_TEXT"
+
+      - name: Save download URL to file
+        run: |
+          echo "PDF_URL=$(cat pdf_url.txt)" >> $GITHUB_ENV
+
+      - name: Commit URL to repo (or update Gist)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          echo "$PDF_URL" > latest_pdf_url.txt
+          git add latest_pdf_url.txt
+          git commit -m "Update latest PDF URL [skip ci]" || true
+          git push
