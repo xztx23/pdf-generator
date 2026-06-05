@@ -23,23 +23,29 @@ def generate_pdf_html(report_text: str) -> str:
 <html>
 <head><meta charset="UTF-8"><title>论文审查报告</title>
 <style>
-@page {{ size: A4; margin: 2.5cm 2.2cm; }}
+@page {{ 
+    size: A4; 
+    margin: 2cm;  /* 上下左右均为2cm */
+}}
 body {{
     font-family: "WenQuanYi Micro Hei", "Noto Sans CJK SC", "SimHei", "Microsoft YaHei", "PingFang SC", "Apple LiGothic", "Droid Sans Fallback", sans-serif;
-    margin:0;
-    line-height:1.5;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;  /* 1.5倍行距 */
 }}
 .doc-title {{
     font-size: 16pt;
     font-weight: bold;
     text-align: center;
     margin: 1cm 0 2cm 0;
+    line-height: 1.5;
 }}
 h1 {{
     font-size: 14pt;
     font-weight: bold;
     text-align: left;
     margin: 1.2em 0 0.8em 0;
+    line-height: 1.5;
 }}
 h1.break-before {{
     page-break-before: always;
