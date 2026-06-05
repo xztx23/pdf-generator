@@ -4,7 +4,6 @@ on:
   repository_dispatch:
     types: [build-pdf]
 
-# 授予写入仓库内容的权限
 permissions:
   contents: write
 
@@ -13,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ... 其余步骤不变
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -22,25 +20,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright jinja2 requests
+          pip install playwright
           playwright install chromium
 
-      - name: Generate PDF and upload to tmpfiles.org
+      - name: Generate PDF and save to PDF/ folder
         env:
           STUDENT_ID: ${{ github.event.client_payload.student_id }}
           REPORT_TEXT: ${{ github.event.client_payload.output }}
         run: |
           python generate_pdf.py "$STUDENT_ID" "$REPORT_TEXT"
 
-      - name: Save download URL to file
-        run: |
-          echo "PDF_URL=$(cat pdf_url.txt)" >> $GITHUB_ENV
-
-      - name: Commit URL to repo (or update Gist)
+      - name: Commit and push PDF file
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          echo "$PDF_URL" > latest_pdf_url.txt
-          git add latest_pdf_url.txt
-          git commit -m "Update latest PDF URL [skip ci]" || true
+          git add PDF/*.pdf
+          git commit -m "Add PDF for student $STUDENT_ID [skip ci]" || echo "No changes to commit"
           git push
