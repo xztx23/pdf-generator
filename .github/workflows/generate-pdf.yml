@@ -23,6 +23,11 @@ jobs:
           pip install playwright
           playwright install chromium
 
+      - name: Install Chinese fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-wqy-microhei fonts-wqy-zenhei
+
       - name: Generate PDF and save to PDF/ folder
         env:
           STUDENT_ID: ${{ github.event.client_payload.student_id }}
