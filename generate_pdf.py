@@ -1,87 +1,119 @@
 import sys
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+def clean_text(text: str) -> str:
+    """移除可能导致格式混乱的控制字符和多余空格"""
+    # 移除零宽字符等不可见字符
+    text = re.sub(r'[\u200b\u200c\u200d\u2060\uFEFF]', '', text)
+    # 合并连续空格
+    text = re.sub(r'[ \t]+', ' ', text)
+    return text.strip()
+
+def is_junk_number_line(line: str) -> bool:
+    """判断是否为垃圾数字序列行（如'1. 2. 3. ...'或'1.2.3.'）"""
+    stripped = line.strip()
+    # 纯数字列表：1. 2. 3. 或 1. 2. 3.
+    if re.match(r'^(\d+\.\s*)+$', stripped):
+        return True
+    # 连续数字加空格：1 2 3 4 ...
+    if re.match(r'^(\d+\s+)+$', stripped):
+        return True
+    # 数字序列超过10个且无意义
+    numbers = re.findall(r'\d+', stripped)
+    if len(numbers) > 20 and len(stripped) > 100:
+        return True
+    return False
+
 def generate_pdf_html(report_text: str) -> str:
-    """将报告文本包装为符合格式要求的 HTML"""
-    lines = report_text.strip().splitlines()
-    html_lines = []
-    h1_flag = False
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            html_lines.append('<p class="empty-line"> </p>')
+    lines = report_text.splitlines()
+    html_parts = []
+    h1_count = 0
+
+    for raw_line in lines:
+        line = clean_text(raw_line)
+        if not line:
+            html_parts.append('<p class="empty-line"> </p>')
             continue
-        # 判断是否为一级标题（以“一、”“二、”“三、”开头）
-        if stripped.startswith(('一、', '二、', '三、')):
-            if h1_flag:
-                html_lines.append(f'<h1 class="break-before">{stripped}</h1>')
-            else:
-                html_lines.append(f'<h1>{stripped}</h1>')
-                h1_flag = True
+
+        # 跳过垃圾数字行
+        if is_junk_number_line(line):
+            continue
+
+        # 跳过单独出现的“论文审查报告”（防止重复）
+        if line == "论文审查报告" or line == "论文审查报告":
+            continue
+
+        # 处理一级标题：去掉可能的Markdown标记（##、#）和多余空格
+        h1_match = re.match(r'^##?\s*([一二三]、.*)$', line)
+        if h1_match:
+            line = h1_match.group(1)  # 得到“一、错别字检查结果”
+        elif line.startswith(('一、', '二、', '三、')):
+            pass  # 保持原样
         else:
-            # 普通正文段落，保留原文中的特殊符号和空格
-            html_lines.append(f'<p>{stripped}</p>')
-    content = '\n'.join(html_lines)
-    
+            # 普通正文行
+            html_parts.append(f'<p>{line}</p>')
+            continue
+
+        # 至此，是一级标题
+        h1_count += 1
+        if h1_count == 1:
+            html_parts.append(f'<h1>{line}</h1>')
+        else:
+            html_parts.append(f'<h1 class="break-before">{line}</h1>')
+
+    content = '\n'.join(html_parts)
+
     return f'''<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>论文审查报告</title>
 <style>
-    /* 页面全局设置：A4，页边距2cm，1.5倍行距 */
     @page {{
         size: A4;
         margin: 2cm;
     }}
     body {{
         font-family: "Times New Roman", "SimSun", "宋体", serif;
-        font-size: 12pt;      /* 正文默认小四 ≈12pt */
+        font-size: 12pt;
         line-height: 1.5;
         margin: 0;
         padding: 0;
         background: white;
     }}
-    /* 总标题：论文审查报告 */
     .doc-title {{
         font-family: "SimHei", "黑体", "Microsoft YaHei", sans-serif;
-        font-size: 16pt;      /* 三号 */
+        font-size: 16pt;
         font-weight: bold;
         text-align: center;
-        margin: 1em 0 1em 0;  /* 段前段后1行 */
+        margin: 1em 0 1em 0;
         line-height: 1.5;
     }}
-    /* 一级标题：一、二、三、 */
     h1 {{
         font-family: "SimHei", "黑体", "Microsoft YaHei", sans-serif;
-        font-size: 14pt;      /* 四号 */
+        font-size: 14pt;
         font-weight: bold;
         text-align: left;
-        margin: 0.5em 0 0.5em 0;  /* 段前段后0.5行 */
+        margin: 0.5em 0 0.5em 0;
         line-height: 1.5;
         page-break-after: avoid;
     }}
-    /* 需要分页的一级标题 */
     h1.break-before {{
         page-break-before: always;
     }}
-    /* 普通正文段落 */
     p {{
         font-family: "Times New Roman", "SimSun", "宋体", serif;
         font-size: 12pt;
         line-height: 1.5;
         margin: 0 0 0.5em 0;
         text-align: left;
+        white-space: pre-wrap;
     }}
-    /* 处理空行占位 */
     p.empty-line {{
         margin: 0;
         height: 0.5em;
-    }}
-    /* 保留原文本中的空白格式 */
-    .content {{
-        white-space: pre-wrap;
     }}
 </style>
 </head>
@@ -106,10 +138,9 @@ def main():
         sys.exit(1)
     student_id = sys.argv[1]
     report_text = sys.argv[2]
-    
     html = generate_pdf_html(report_text)
     pdf_bytes = html_to_pdf_bytes(html)
-    
+
     pdf_dir = Path("PDF")
     pdf_dir.mkdir(exist_ok=True)
     pdf_path = pdf_dir / f"{student_id}.pdf"
