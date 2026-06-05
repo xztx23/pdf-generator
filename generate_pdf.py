@@ -1,7 +1,6 @@
 import sys
-import json
-import base64
-import requests
+import os
+from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 def generate_pdf_html(report_text: str) -> str:
@@ -48,26 +47,17 @@ def html_to_pdf_bytes(html: str) -> bytes:
         browser.close()
         return pdf_bytes
 
-def upload_to_tmpfiles(pdf_bytes: bytes) -> str:
-    """上传到 tmpfiles.org 并返回下载链接"""
-    files = {'file': ('report.pdf', pdf_bytes, 'application/pdf')}
-    r = requests.post('https://tmpfiles.org/api/v1/upload', files=files)
-    if r.status_code == 200:
-        data = r.json()
-        # 返回的 data['data']['url'] 是页面链接，实际文件链接需加 /dl/
-        return data['data']['url'].replace('/v1/', '/dl/')
-    else:
-        raise Exception("Upload failed")
-
 def main():
     student_id = sys.argv[1]
     report_text = sys.argv[2]
     html = generate_pdf_html(report_text)
     pdf_bytes = html_to_pdf_bytes(html)
-    url = upload_to_tmpfiles(pdf_bytes)
-    with open('pdf_url.txt', 'w') as f:
-        f.write(url)
-    print(f"PDF uploaded: {url}")
+    # 创建 PDF 目录
+    pdf_dir = Path("PDF")
+    pdf_dir.mkdir(exist_ok=True)
+    pdf_path = pdf_dir / f"{student_id}.pdf"
+    pdf_path.write_bytes(pdf_bytes)
+    print(f"PDF saved to {pdf_path}")
 
 if __name__ == '__main__':
     main()
