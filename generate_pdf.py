@@ -4,14 +4,12 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 def clean_line(line: str) -> str:
-    """移除不可见字符、首尾空格、合并多余空格"""
     line = re.sub(r'[\u200b\u200c\u200d\u2060\uFEFF]', '', line)
     line = line.strip()
     line = re.sub(r'[ \t]+', ' ', line)
     return line
 
 def is_junk_number_line(line: str) -> bool:
-    """判断是否为垃圾数字序列（如 '1. 2. 3. ...' 或 '1 2 3 4'）"""
     stripped = line.strip()
     if re.fullmatch(r'(\d+\.\s*)+', stripped):
         return True
@@ -23,24 +21,22 @@ def is_junk_number_line(line: str) -> bool:
     return False
 
 def parse_elements(text: str):
-    """解析文本，返回元素列表 (type, content)"""
     lines = text.splitlines()
     elements = []
     for raw_line in lines:
         line = clean_line(raw_line)
         if not line:
             continue
-        # 跳过单独的“论文审查报告”（防止重复）
-        if line == "论文审查报告":
+        # 跳过单独的“论文审查报告”（大小写、全半角变化）
+        if re.fullmatch(r'论文审查报告', line):
             continue
         if is_junk_number_line(line):
             continue
 
-        # 处理一级标题：移除可能的 Markdown 标记
         h1_match = re.match(r'^#*\s*([一二三]、.*)$', line)
         if h1_match:
             h1_text = h1_match.group(1)
-            if h1_text != "论文审查报告":
+            if not re.fullmatch(r'论文审查报告', h1_text):
                 elements.append(('h1', h1_text))
         elif line.startswith(('一、', '二、', '三、')):
             elements.append(('h1', line))
@@ -49,17 +45,16 @@ def parse_elements(text: str):
     return elements
 
 def build_html(elements):
-    """生成完整 HTML"""
     html_parts = []
-    first_h1_seen = False
+    first_h1 = False
     for typ, content in elements:
         if typ == 'h1':
-            if first_h1_seen:
+            if first_h1:
                 html_parts.append(f'<h1 class="break-before">{content}</h1>')
             else:
                 html_parts.append(f'<h1>{content}</h1>')
-                first_h1_seen = True
-        else:  # p
+                first_h1 = True
+        else:
             html_parts.append(f'<p>{content}</p>')
     content_html = '\n'.join(html_parts)
 
@@ -69,12 +64,18 @@ def build_html(elements):
 <meta charset="UTF-8">
 <title>论文审查报告</title>
 <style>
+    @font-face {{
+        font-family: 'TimesNewRoman';
+        src: local('Times New Roman'), local('TimesNewRoman'), local('Times');
+        font-weight: normal;
+        font-style: normal;
+    }}
     @page {{
         size: A4;
         margin: 2cm;
     }}
     body {{
-        font-family: "Times New Roman", "Noto Serif CJK SC", "SimSun", "宋体", serif;
+        font-family: 'TimesNewRoman', 'Liberation Serif', 'Times', 'Noto Serif CJK SC', 'SimSun', '宋体', serif;
         font-size: 12pt;
         line-height: 1.5;
         margin: 0;
@@ -82,7 +83,7 @@ def build_html(elements):
         background: white;
     }}
     .doc-title {{
-        font-family: "SimHei", "Noto Sans CJK SC", "Microsoft YaHei", "黑体", sans-serif;
+        font-family: 'SimHei', 'Noto Sans CJK SC', 'Microsoft YaHei', '黑体', 'TimesNewRoman', sans-serif;
         font-size: 16pt;
         font-weight: bold;
         text-align: center;
@@ -90,7 +91,7 @@ def build_html(elements):
         line-height: 1.5;
     }}
     h1 {{
-        font-family: "SimHei", "Noto Sans CJK SC", "Microsoft YaHei", "黑体", sans-serif;
+        font-family: 'SimHei', 'Noto Sans CJK SC', 'Microsoft YaHei', '黑体', 'TimesNewRoman', sans-serif;
         font-size: 14pt;
         font-weight: bold;
         text-align: left;
@@ -102,7 +103,7 @@ def build_html(elements):
         page-break-before: always;
     }}
     p {{
-        font-family: "Times New Roman", "Noto Serif CJK SC", "SimSun", "宋体", serif;
+        font-family: 'TimesNewRoman', 'Liberation Serif', 'Times', 'Noto Serif CJK SC', 'SimSun', '宋体', serif;
         font-size: 12pt;
         line-height: 1.5;
         margin: 0 0 0.5em 0;
