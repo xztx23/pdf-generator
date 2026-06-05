@@ -23,14 +23,15 @@ jobs:
           pip install playwright
           playwright install chromium
 
-      - name: Install Chinese fonts (SimSun-like and Times New Roman)
+      - name: Install Chinese fonts and Times New Roman
         run: |
           sudo apt-get update
-          # 安装 Noto Serif CJK SC（衬线宋体风格）和文泉驿微米黑（备用）
           sudo apt-get install -y fonts-noto-cjk fonts-wqy-microhei fonts-wqy-zenhei
-          # 安装 Times New Roman 兼容字体
-          sudo apt-get install -y ttf-mscorefonts-installer
+          sudo apt-get install -y ttf-mscorefonts-installer fonts-liberation
+          # 手动注册 Times New Roman 字体
           sudo fc-cache -fv
+          # 验证安装
+          fc-list | grep -i "times" || echo "Times New Roman not found"
 
       - name: Generate PDF and save to PDF/ folder
         env:
