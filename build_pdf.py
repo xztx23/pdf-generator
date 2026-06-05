@@ -1,27 +1,25 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, PageBreak
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+import re
 
 # 读取参数
 with open("student_id.txt", "r", encoding="utf-8") as f:
     student_id = f.read().strip()
 with open("content.txt", "r", encoding="utf-8") as f:
-    content = f.read()
+    raw_content = f.read()
+
+# 关键：剔除所有HTML标签，纯文本渲染
+clean_content = re.sub(r"<.*?>", "", raw_content)
+content = clean_content
 
 pdf_filename = f"{student_id}.pdf"
 doc = SimpleDocTemplate(pdf_filename, pagesize=A4,
                         topMargin=40, bottomMargin=40, leftMargin=45, rightMargin=45)
 story = []
 
-# 关键修复：手动注册文泉驿正黑字体
-FONT_NAME = "WenQuanYiZenHei"
-try:
-    pdfmetrics.registerFont(TTFont(FONT_NAME, "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"))
-except:
-    # 注册失败 fallback 用默认字体
-    FONT_NAME = "Helvetica"
+# 规避黑体粗体报错：统一使用系统默认Helvetica，无粗斜体依赖
+FONT_NAME = "Helvetica"
 
 # 样式定义
 title_style = ParagraphStyle(
