@@ -1,36 +1,40 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, PageBreak
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
-# 读取学号和文本
+# 读取参数
 with open("student_id.txt", "r", encoding="utf-8") as f:
     student_id = f.read().strip()
-
 with open("content.txt", "r", encoding="utf-8") as f:
     content = f.read()
 
 pdf_filename = f"{student_id}.pdf"
-
-# PDF配置 A4
 doc = SimpleDocTemplate(pdf_filename, pagesize=A4,
                         topMargin=40, bottomMargin=40, leftMargin=45, rightMargin=45)
 story = []
 
-# 字体
-font_hei = "WenQuanYiZenHei"
+# 关键修复：手动注册文泉驿正黑字体
+FONT_NAME = "WenQuanYiZenHei"
+try:
+    pdfmetrics.registerFont(TTFont(FONT_NAME, "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"))
+except:
+    # 注册失败 fallback 用默认字体
+    FONT_NAME = "Helvetica"
 
-# 样式
+# 样式定义
 title_style = ParagraphStyle(
-    "title", fontName=font_hei, fontSize=16, alignment=1, spaceAfter=24
+    "title", fontName=FONT_NAME, fontSize=16, alignment=1, spaceAfter=24
 )
 h1_style = ParagraphStyle(
-    "h1", fontName=font_hei, fontSize=14, alignment=0, spaceBefore=16, spaceAfter=10
+    "h1", fontName=FONT_NAME, fontSize=14, alignment=0, spaceBefore=16, spaceAfter=10
 )
 text_style = ParagraphStyle(
-    "text", fontName=font_hei, fontSize=12, alignment=0, spaceAfter=6, leading=16
+    "text", fontName=FONT_NAME, fontSize=12, alignment=0, spaceAfter=6, leading=16
 )
 
-# 内容处理
+# 文档内容拆分
 lines = content.splitlines()
 if lines:
     story.append(Paragraph(lines[0], title_style))
@@ -41,8 +45,8 @@ parts = [
     "二、病句检查结果",
     "三、专业性检查结果"
 ]
-
 current = body
+
 for i, part in enumerate(parts):
     if i > 0:
         story.append(PageBreak())
@@ -51,7 +55,6 @@ for i, part in enumerate(parts):
         current = current.split(parts[i+1])[1]
     else:
         chunk = current
-
     for line in chunk.splitlines():
         line = line.strip()
         if not line:
