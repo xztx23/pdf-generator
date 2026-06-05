@@ -1,5 +1,4 @@
 import sys
-import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -10,6 +9,10 @@ def generate_pdf_html(report_text: str) -> str:
     h1_flag = False
     for line in lines:
         stripped = line.strip()
+        if not stripped:
+            html_lines.append('<p class="empty-line"> </p>')
+            continue
+        # 判断是否为一级标题（以“一、”“二、”“三、”开头）
         if stripped.startswith(('一、', '二、', '三、')):
             if h1_flag:
                 html_lines.append(f'<h1 class="break-before">{stripped}</h1>')
@@ -17,47 +20,69 @@ def generate_pdf_html(report_text: str) -> str:
                 html_lines.append(f'<h1>{stripped}</h1>')
                 h1_flag = True
         else:
+            # 普通正文段落，保留原文中的特殊符号和空格
             html_lines.append(f'<p>{stripped}</p>')
     content = '\n'.join(html_lines)
+    
     return f'''<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>论文审查报告</title>
+<head>
+<meta charset="UTF-8">
+<title>论文审查报告</title>
 <style>
-@page {{ 
-    size: A4; 
-    margin: 2cm;  /* 上下左右均为2cm */
-}}
-body {{
-    font-family: "WenQuanYi Micro Hei", "Noto Sans CJK SC", "SimHei", "Microsoft YaHei", "PingFang SC", "Apple LiGothic", "Droid Sans Fallback", sans-serif;
-    margin: 0;
-    padding: 0;
-    line-height: 1.5;  /* 1.5倍行距 */
-}}
-.doc-title {{
-    font-size: 16pt;
-    font-weight: bold;
-    text-align: center;
-    margin: 1cm 0 2cm 0;
-    line-height: 1.5;
-}}
-h1 {{
-    font-size: 14pt;
-    font-weight: bold;
-    text-align: left;
-    margin: 1.2em 0 0.8em 0;
-    line-height: 1.5;
-}}
-h1.break-before {{
-    page-break-before: always;
-}}
-p, li {{
-    font-size: 12pt;
-    line-height: 1.5;
-    margin: 0.5em 0;
-}}
-.content {{
-    white-space: pre-wrap;
-}}
+    /* 页面全局设置：A4，页边距2cm，1.5倍行距 */
+    @page {{
+        size: A4;
+        margin: 2cm;
+    }}
+    body {{
+        font-family: "Times New Roman", "SimSun", "宋体", serif;
+        font-size: 12pt;      /* 正文默认小四 ≈12pt */
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+        background: white;
+    }}
+    /* 总标题：论文审查报告 */
+    .doc-title {{
+        font-family: "SimHei", "黑体", "Microsoft YaHei", sans-serif;
+        font-size: 16pt;      /* 三号 */
+        font-weight: bold;
+        text-align: center;
+        margin: 1em 0 1em 0;  /* 段前段后1行 */
+        line-height: 1.5;
+    }}
+    /* 一级标题：一、二、三、 */
+    h1 {{
+        font-family: "SimHei", "黑体", "Microsoft YaHei", sans-serif;
+        font-size: 14pt;      /* 四号 */
+        font-weight: bold;
+        text-align: left;
+        margin: 0.5em 0 0.5em 0;  /* 段前段后0.5行 */
+        line-height: 1.5;
+        page-break-after: avoid;
+    }}
+    /* 需要分页的一级标题 */
+    h1.break-before {{
+        page-break-before: always;
+    }}
+    /* 普通正文段落 */
+    p {{
+        font-family: "Times New Roman", "SimSun", "宋体", serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        margin: 0 0 0.5em 0;
+        text-align: left;
+    }}
+    /* 处理空行占位 */
+    p.empty-line {{
+        margin: 0;
+        height: 0.5em;
+    }}
+    /* 保留原文本中的空白格式 */
+    .content {{
+        white-space: pre-wrap;
+    }}
 </style>
 </head>
 <body>
@@ -81,9 +106,10 @@ def main():
         sys.exit(1)
     student_id = sys.argv[1]
     report_text = sys.argv[2]
+    
     html = generate_pdf_html(report_text)
     pdf_bytes = html_to_pdf_bytes(html)
-    # 创建 PDF 目录
+    
     pdf_dir = Path("PDF")
     pdf_dir.mkdir(exist_ok=True)
     pdf_path = pdf_dir / f"{student_id}.pdf"
