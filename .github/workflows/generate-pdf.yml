@@ -1,6 +1,16 @@
-name: 生成论文审查PDF
+name: 生成论文审查PDF（支持手动+扣子触发）
 on:
-  workflow_dispatch:   # 允许手动运行
+  workflow_dispatch:
+    inputs:
+      student_id:
+        description: '学号'
+        required: true
+        type: string
+      content:
+        description: '论文审查报告文本'
+        required: true
+        type: string
+
   repository_dispatch:
     types: [generate_pdf]
 
@@ -8,8 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: 安装环境
         run: |
@@ -17,10 +26,15 @@ jobs:
           sudo apt install -y fonts-wqy-zenhei python3-pip
           pip install reportlab
 
-      - name: 保存传入内容
+      - name: 判断来源并保存参数
         run: |
-          echo '${{ github.event.client_payload.content }}' > content.txt
-          echo '${{ github.event.client_payload.student_id }}' > student_id.txt
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo '${{ github.event.client_payload.student_id }}' > student_id.txt
+            echo '${{ github.event.client_payload.content }}' > content.txt
+          else
+            echo '${{ github.event.inputs.student_id }}' > student_id.txt
+            echo '${{ github.event.inputs.content }}' > content.txt
+          fi
 
       - name: 生成PDF
         run: python3 build_pdf.py
@@ -28,5 +42,5 @@ jobs:
       - name: 上传PDF
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.client_payload.student_id }}
-          path: ${{ github.event.client_payload.student_id }}.pdf
+          name: pdf-report
+          path: ${{ env.student_id }}.pdf
