@@ -24,12 +24,34 @@ def generate_pdf_html(report_text: str) -> str:
 <head><meta charset="UTF-8"><title>论文审查报告</title>
 <style>
 @page {{ size: A4; margin: 2.5cm 2.2cm; }}
-body {{ font-family: "SimHei", "Microsoft YaHei", "黑体", sans-serif; margin:0; line-height:1.5; }}
-.doc-title {{ font-size: 16pt; font-weight: bold; text-align: center; margin: 1cm 0 2cm 0; }}
-h1 {{ font-size: 14pt; font-weight: bold; text-align: left; margin: 1.2em 0 0.8em 0; }}
-h1.break-before {{ page-break-before: always; }}
-p, li {{ font-size: 12pt; line-height: 1.5; margin: 0.5em 0; }}
-.content {{ white-space: pre-wrap; }}
+body {{
+    font-family: "WenQuanYi Micro Hei", "Noto Sans CJK SC", "SimHei", "Microsoft YaHei", "PingFang SC", "Apple LiGothic", "Droid Sans Fallback", sans-serif;
+    margin:0;
+    line-height:1.5;
+}}
+.doc-title {{
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 1cm 0 2cm 0;
+}}
+h1 {{
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: left;
+    margin: 1.2em 0 0.8em 0;
+}}
+h1.break-before {{
+    page-break-before: always;
+}}
+p, li {{
+    font-size: 12pt;
+    line-height: 1.5;
+    margin: 0.5em 0;
+}}
+.content {{
+    white-space: pre-wrap;
+}}
 </style>
 </head>
 <body>
@@ -48,6 +70,9 @@ def html_to_pdf_bytes(html: str) -> bytes:
         return pdf_bytes
 
 def main():
+    if len(sys.argv) < 3:
+        print("Usage: python generate_pdf.py <student_id> <report_text>")
+        sys.exit(1)
     student_id = sys.argv[1]
     report_text = sys.argv[2]
     html = generate_pdf_html(report_text)
