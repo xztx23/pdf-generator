@@ -1,13 +1,14 @@
 name: 生成论文审查PDF
 on:
-  repository_dispatch:  # 接收扣子HTTP请求
+  workflow_dispatch:   # 允许手动运行
+  repository_dispatch:
     types: [generate_pdf]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: 安装环境
@@ -16,7 +17,7 @@ jobs:
           sudo apt install -y fonts-wqy-zenhei python3-pip
           pip install reportlab
 
-      - name: 接收参数并保存文本
+      - name: 保存传入内容
         run: |
           echo '${{ github.event.client_payload.content }}' > content.txt
           echo '${{ github.event.client_payload.student_id }}' > student_id.txt
@@ -27,5 +28,5 @@ jobs:
       - name: 上传PDF
         uses: actions/upload-artifact@v4
         with:
-          name: pdf-report
+          name: ${{ github.event.client_payload.student_id }}
           path: ${{ github.event.client_payload.student_id }}.pdf
